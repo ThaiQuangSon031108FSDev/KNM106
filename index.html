@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cẩm Nang Phát Triển Bản Thân Tương Tác</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Horizon -->
+    <!-- Application Structure Plan: The SPA is designed with a top, sticky navigation bar corresponding to the 5 main sections of the report. This allows users to immediately grasp the scope and jump to any topic of interest, avoiding a long, disorienting scroll. This thematic, dashboard-like structure prioritizes user-driven exploration over the linear format of the source report. Each section is a self-contained module with its own introduction, interactive elements, and key takeaways. This modularity makes the dense information more digestible. The user flow is non-linear; a user can explore productivity, then jump to communication, and then back to personal foundations, all with a single click. This was chosen because the topics, while related, are distinct enough that a user might only be interested in one or two at a time. The interactive elements within each section are designed to encourage engagement and active learning rather than passive reading. -->
+    <!-- Visualization & Content Choices: 
+        - Part 1 (Foundations): Goal: Organize & Inform. Method: Interactive cards for Universal Laws (click to reveal), HTML/CSS pyramid for Maslow's Hierarchy (clickable layers), and a Radar Chart for EQ components (Chart.js). Justification: These methods turn abstract concepts into tangible, explorable diagrams, improving comprehension and retention over plain text.
+        - Part 2 (Productivity): Goal: Organize & Compare. Method: Interactive 2x2 grid for Eisenhower Matrix (HTML/CSS, JS for interaction), and an accordion for SMART criteria. Justification: Visually represents the decision-making process, making it a practical tool rather than just a theory.
+        - Part 3 (Communication): Goal: Inform & Organize. Method: A process flow diagram for Tuckman's stages (HTML/CSS), and a Donut Chart for Google's team effectiveness keys (Chart.js). Justification: Visualizes processes and proportions effectively. Tuckman's model is a sequence, best shown as a flow. The donut chart highlights the primary importance of Psychological Safety.
+        - Part 4 (Professional Dev): Goal: Compare & Inform. Method: "Do's and Don'ts" toggle lists for CVs, an interactive email diagram, and a tabbed component for interview questions. Justification: Provides clear, actionable advice in an easily scannable format.
+        - Part 5 (Social Issues): Goal: Inform & Guide. Method: Simple info cards for sensitive topics and an infographic-style number block. Justification: Presents serious information clearly and respectfully without being overly graphic or intimidating. A bar chart was considered for cyberbullying stats but omitted as the source data was qualitative ("significant rate").
+        - Library/Method Confirmation: All visualizations use Chart.js (Canvas) or are custom-built with HTML/CSS and JS.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #F8F9FA; color: #343a40; }
+        .nav-button { transition: all 0.3s ease; }
+        .nav-button.active { color: #007BFF; border-bottom-color: #007BFF; font-weight: 600; }
+        .nav-button:not(.active) { border-bottom-color: transparent; }
+        .content-section { display: none; }
+        .content-section.active { display: block; animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .card { background-color: white; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); transition: transform 0.3s ease, box-shadow 0.3s ease; }
+        .card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); }
+        .interactive-element { border: 1px solid #e9ecef; border-radius: 0.5rem; padding: 1rem; }
+        .maslow-level { cursor: pointer; transition: all 0.3s ease; }
+        .maslow-level:hover { filter: brightness(0.95); transform: scale(1.02); }
+        .eisenhower-quadrant { transition: all 0.3s ease; cursor: pointer; }
+        .eisenhower-quadrant:hover { transform: scale(1.05); z-index: 10; box-shadow: 0 10px 20px rgba(0,0,0,0.15); }
+        .tuckman-stage { transition: background-color 0.3s; cursor: pointer; }
+        .tuckman-stage:hover, .tuckman-stage.active { background-color: #E9F4FF; }
+        .chart-container { position: relative; width: 100%; max-width: 500px; margin-left: auto; margin-right: auto; height: 350px; max-height: 400px; }
+    </style>
+</head>
+<body class="antialiased">
+
+    <header class="bg-white/80 backdrop-blur-lg sticky top-0 z-30 shadow-sm">
+        <nav class="container mx-auto px-4">
+            <div class="flex items-center justify-between h-16">
+                <h1 class="text-xl md:text-2xl font-bold text-blue-600">Phát Triển Bản Thân</h1>
+                <div class="hidden md:flex items-center space-x-1 overflow-x-auto">
+                    <button data-target="nen-tang" class="nav-button p-4 border-b-2 text-sm lg:text-base">Nền Tảng</button>
+                    <button data-target="nang-suat" class="nav-button p-4 border-b-2 text-sm lg:text-base">Năng Suất</button>
+                    <button data-target="giao-tiep" class="nav-button p-4 border-b-2 text-sm lg:text-base">Giao Tiếp</button>
+                    <button data-target="chuyen-mon" class="nav-button p-4 border-b-2 text-sm lg:text-base">Chuyên Môn</button>
+                    <button data-target="xa-hoi" class="nav-button p-4 border-b-2 text-sm lg:text-base">Xã Hội</button>
+                </div>
+                <div class="md:hidden">
+                    <select id="mobile-nav" class="bg-white border border-gray-300 rounded-md py-2 px-3 text-gray-700">
+                        <option value="nen-tang">Nền Tảng</option>
+                        <option value="nang-suat">Năng Suất</option>
+                        <option value="giao-tiep">Giao Tiếp</option>
+                        <option value="chuyen-mon">Chuyên Môn</option>
+                        <option value="xa-hoi">Xã Hội</option>
+                    </select>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto p-4 md:p-8">
+        <!-- Section 1: Nền tảng -->
+        <section id="nen-tang" class="content-section">
+            <h2 class="text-3xl font-bold mb-2 text-gray-800">Phần 1: Nền Tảng Của Sự Phát Triển và An Lạc Cá Nhân</h2>
+            <p class="mb-8 text-lg text-gray-600">Phần này khám phá các nguyên tắc và cấu trúc tâm lý học cơ bản, làm nền tảng cho sự phát triển cá nhân và trạng thái an lạc toàn diện. Hãy cùng tìm hiểu cách các quy luật vũ trụ, hệ thống niềm tin, nhu cầu con người và trí tuệ cảm xúc cùng nhau đóng góp vào một cuộc sống viên mãn.</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- 1.1 Các quy luật vũ trụ -->
+                <div class="card p-6">
+                    <h3 class="text-xl font-semibold mb-4">1.1 Các Quy Luật Vũ Trụ</h3>
+                    <p class="text-gray-600 mb-4">Vũ trụ vận hành theo những quy luật bất biến. Hiểu và áp dụng chúng có thể dẫn đến thành công. Nhấp vào từng quy luật để xem chi tiết.</p>
+                    <div id="universal-laws-container" class="space-y-2"></div>
+                </div>
+
+                <!-- 1.2 Niềm tin -->
+                <div class="card p-6">
+                    <h3 class="text-xl font-semibold mb-4">1.2 Sức Mạnh Của Niềm Tin</h3>
+                    <p class="text-gray-600 mb-4">Niềm tin là bộ lọc thực tại của chúng ta. Chúng định hình suy nghĩ, cảm xúc và hành động. Có ba loại niềm tin chính:</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+                        <div class="p-4 bg-green-100 rounded-lg">
+                            <h4 class="font-semibold text-green-800">Tích cực ✅</h4>
+                            <p class="text-sm text-green-700">"Tôi có thể làm được." Thúc đẩy động lực, giúp vượt qua khó khăn.</p>
+                        </div>
+                        <div class="p-4 bg-red-100 rounded-lg">
+                            <h4 class="font-semibold text-red-800">Tiêu cực ❌</h4>
+                            <p class="text-sm text-red-700">"Tôi không đủ giỏi." Kìm hãm tiềm năng, gây sợ hãi.</p>
+                        </div>
+                        <div class="p-4 bg-yellow-100 rounded-lg">
+                            <h4 class="font-semibold text-yellow-800">Giới hạn 🔗</h4>
+                            <p class="text-sm text-yellow-700">Những định kiến sai lầm mà ta tin là thật, hạn chế khả năng của bản thân.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 1.3 Tháp nhu cầu Maslow -->
+                <div class="card p-6">
+                    <h3 class="text-xl font-semibold mb-4">1.3 Tháp Nhu Cầu Maslow</h3>
+                    <p class="text-gray-600 mb-4">Học thuyết của Maslow phân cấp nhu cầu con người. Nhấp vào từng tầng để khám phá. Mô hình này giúp hiểu rõ động lực đằng sau hành vi của chúng ta.</p>
+                    <div id="maslow-pyramid" class="space-y-1 text-center font-semibold text-white"></div>
+                    <div id="maslow-details" class="mt-4 p-4 bg-gray-100 rounded-lg text-gray-700 min-h-[80px]"></div>
+                </div>
+
+                <!-- 1.4 Trí tuệ cảm xúc (EQ) -->
+                <div class="card p-6 flex flex-col">
+                    <h3 class="text-xl font-semibold mb-4">1.4 Trí Tuệ Cảm Xúc (EQ)</h3>
+                    <p class="text-gray-600 mb-4">EQ là khả năng nhận biết, hiểu và quản lý cảm xúc. Không giống IQ, EQ có thể học hỏi và cải thiện, là yếu tố quyết định thành công trong cuộc sống.</p>
+                    <div class="chart-container flex-grow">
+                        <canvas id="eqChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 2: Năng suất -->
+        <section id="nang-suat" class="content-section">
+            <h2 class="text-3xl font-bold mb-2 text-gray-800">Phần 2: Nâng Cao Năng Suất và Đạt Được Mục Tiêu</h2>
+            <p class="mb-8 text-lg text-gray-600">Phần này tập trung vào các phương pháp thực tiễn để cải thiện hiệu quả cá nhân và nghề nghiệp. Khám phá các khung làm việc đã được chứng minh để thiết lập mục tiêu rõ ràng và quản lý thời gian hiệu quả, biến khát vọng thành kết quả hữu hình.</p>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- 2.1 Ma trận Eisenhower -->
+                <div class="card p-6">
+                    <h3 class="text-xl font-semibold mb-4">2.2 Ma Trận Quản Lý Thời Gian Eisenhower</h3>
+                    <p class="text-gray-600 mb-4">Ưu tiên công việc dựa trên sự khẩn cấp và tầm quan trọng để tập trung vào những gì thực sự tạo ra giá trị. Nhấp vào mỗi ô để xem chiến lược hành động.</p>
+                    <div class="grid grid-cols-2 grid-rows-2 gap-2 aspect-square">
+                        <div data-quadrant="1" class="eisenhower-quadrant bg-red-500 rounded-lg flex items-center justify-center p-4 text-white font-bold text-center">LÀM NGAY<br>(Khẩn cấp & Quan trọng)</div>
+                        <div data-quadrant="2" class="eisenhower-quadrant bg-blue-500 rounded-lg flex items-center justify-center p-4 text-white font-bold text-center">LÊN LỊCH<br>(Quan trọng & Không khẩn cấp)</div>
+                        <div data-quadrant="3" class="eisenhower-quadrant bg-green-500 rounded-lg flex items-center justify-center p-4 text-white font-bold text-center">ỦY THÁC<br>(Khẩn cấp & Không quan trọng)</div>
+                        <div data-quadrant="4" class="eisenhower-quadrant bg-gray-500 rounded-lg flex items-center justify-center p-4 text-white font-bold text-center">LOẠI BỎ<br>(Không khẩn cấp & Không quan trọng)</div>
+                    </div>
+                     <div id="eisenhower-details" class="mt-4 p-4 bg-gray-100 rounded-lg text-gray-700 min-h-[100px]"></div>
+                </div>
+
+                <!-- 2.2 Mục tiêu SMART -->
+                <div class="card p-6">
+                    <h3 class="text-xl font-semibold mb-4">2.1 Thiết Lập Mục Tiêu SMART</h3>
+                    <p class="text-gray-600 mb-4">Sử dụng khung SMART để biến những mong muốn mơ hồ thành các mục tiêu cụ thể, có thể hành động và đo lường được. Sự rõ ràng này làm tăng đáng kể khả năng thành công.</p>
+                    <div id="smart-goals-container" class="space-y-3"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 3: Giao tiếp -->
+        <section id="giao-tiep" class="content-section">
+            <h2 class="text-3xl font-bold mb-2 text-gray-800">Phần 3: Xuất Sắc Trong Giao Tiếp và Hợp Tác</h2>
+            <p class="mb-8 text-lg text-gray-600">Phần này khám phá bản chất đa diện của giao tiếp và làm việc nhóm hiệu quả. Nắm vững nghệ thuật thuyết trình, hiểu các tín hiệu phi ngôn ngữ, và xây dựng các nhóm làm việc hiệu suất cao là những kỹ năng tối quan trọng trong mọi bối cảnh.</p>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- 3.1 Thuyết trình -->
+                <div class="card p-6">
+                    <h3 class="text-xl font-semibold mb-4">3.1 Nghệ Thuật Thuyết Trình Thuyết Phục</h3>
+                    <p class="text-gray-600 mb-4">Một bài thuyết trình hiệu quả kết hợp nội dung logic, sự tự tin và khả năng kết nối với khán giả. Dưới đây là các yếu tố chính:</p>
+                    <ul class="list-disc list-inside space-y-2 text-gray-700">
+                        <li><b>Hiểu khán giả:</b> Điều chỉnh thông điệp phù hợp với người nghe.</li>
+                        <li><b>Chuẩn bị kỹ lưỡng:</b> Nắm vững nội dung và chuẩn bị tài liệu trực quan.</li>
+                        <li><b>Cấu trúc logic:</b> Mở đầu ấn tượng, thân bài rõ ràng, kết thúc mạnh mẽ.</li>
+                        <li><b>Ngôn ngữ cơ thể:</b> Đứng thẳng, giao tiếp bằng mắt, sử dụng cử chỉ tự nhiên.</li>
+                        <li><b>Luyện tập:</b> Diễn tập nhiều lần để trôi chảy và tự tin.</li>
+                    </ul>
+                </div>
+                <!-- 3.3 Làm việc nhóm -->
+                 <div class="card p-6 flex flex-col">
+                    <h3 class="text-xl font-semibold mb-4">3.3 Xây Dựng Nhóm Hiệu Suất Cao</h3>
+                    <p class="text-gray-600 mb-4">Theo nghiên cứu của Google, các nhóm hiệu quả nhất có 5 đặc điểm chính. An toàn tâm lý là nền tảng quan trọng nhất.</p>
+                     <div class="chart-container flex-grow">
+                        <canvas id="teamworkChart"></canvas>
+                    </div>
+                </div>
+                <!-- 3.3 Các giai đoạn của nhóm -->
+                <div class="card p-6 col-span-1 lg:col-span-2">
+                    <h3 class="text-xl font-semibold mb-4">Các Giai Đoạn Phát Triển Nhóm Của Tuckman</h3>
+                    <p class="text-gray-600 mb-4">Mọi nhóm đều trải qua các giai đoạn phát triển. Hiểu được chu trình này giúp lãnh đạo và thành viên điều hướng xung đột và hợp tác hiệu quả hơn. Nhấp vào từng giai đoạn để xem chi tiết.</p>
+                    <div class="flex flex-col md:flex-row items-center justify-between space-y-2 md:space-y-0 md:space-x-2">
+                        <div data-stage="forming" class="tuckman-stage w-full text-center p-3 rounded-lg border-2 border-blue-200">1. Forming (Hình thành)</div>
+                        <div class="text-gray-400 font-bold hidden md:block">→</div>
+                        <div data-stage="storming" class="tuckman-stage w-full text-center p-3 rounded-lg border-2 border-red-200">2. Storming (Bão tố)</div>
+                        <div class="text-gray-400 font-bold hidden md:block">→</div>
+                        <div data-stage="norming" class="tuckman-stage w-full text-center p-3 rounded-lg border-2 border-yellow-200">3. Norming (Bình thường hóa)</div>
+                        <div class="text-gray-400 font-bold hidden md:block">→</div>
+                        <div data-stage="performing" class="tuckman-stage w-full text-center p-3 rounded-lg border-2 border-green-200">4. Performing (Hoạt động)</div>
+                        <div class="text-gray-400 font-bold hidden md:block">→</div>
+                        <div data-stage="adjourning" class="tuckman-stage w-full text-center p-3 rounded-lg border-2 border-gray-200">5. Adjourning (Thoái trào)</div>
+                    </div>
+                    <div id="tuckman-details" class="mt-4 p-4 bg-gray-100 rounded-lg text-gray-700 min-h-[100px]"></div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Section 4: Chuyên môn -->
+        <section id="chuyen-mon" class="content-section">
+            <h2 class="text-3xl font-bold mb-2 text-gray-800">Phần 4: Nâng Cao Phát Triển Chuyên Môn</h2>
+            <p class="mb-8 text-lg text-gray-600">Phần này đề cập đến các kỹ năng và công cụ cần thiết để điều hướng bối cảnh chuyên nghiệp, từ việc tạo một CV hấp dẫn, làm chủ nghi thức email, đến việc tự tin xử lý các cuộc phỏng vấn xin việc.</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- 4.1 CV -->
+                <div class="card p-6">
+                    <h3 class="text-xl font-semibold mb-4">4.1 Xây Dựng CV Hấp Dẫn</h3>
+                    <p class="text-gray-600 mb-4">Một CV tốt không chỉ liệt kê kinh nghiệm mà còn phải chứng minh được giá trị và tác động của bạn. Dưới đây là những lỗi phổ biến cần tránh:</p>
+                    <ul id="cv-errors" class="space-y-2 text-sm"></ul>
+                </div>
+                <!-- 4.2 Email -->
+                <div class="card p-6">
+                    <h3 class="text-xl font-semibold mb-4">4.2 Nghi Thức Email Chuyên Nghiệp</h3>
+                    <p class="text-gray-600 mb-4">Mỗi email bạn gửi đều góp phần xây dựng hình ảnh chuyên nghiệp của bạn. Hãy đảm bảo email của bạn luôn rõ ràng, súc tích và lịch sự.</p>
+                     <div class="border rounded-lg p-4 bg-white shadow-inner">
+                        <p class="text-sm font-mono text-gray-500"><strong>Tiêu đề:</strong> <span class="text-blue-600 font-semibold">[Rõ ràng, súc tích, có từ khóa]</span></p>
+                        <hr class="my-2">
+                        <p class="text-sm text-gray-700">Kính gửi [Tên người nhận],</p>
+                        <p class="text-sm text-gray-700 mt-2">[Nêu rõ lý do viết email ngay từ đầu.]</p>
+                        <p class="text-sm text-gray-700 mt-2">[Trình bày nội dung chính một cách logic, chia thành các đoạn ngắn hoặc gạch đầu dòng.]</p>
+                        <p class="text-sm text-gray-700 mt-2">[Nêu rõ hành động mong muốn hoặc lời kết.]</p>
+                        <p class="text-sm text-gray-700 mt-4">Trân trọng,</p>
+                        <p class="text-sm text-gray-700 font-semibold">[Họ tên]</p>
+                        <p class="text-sm text-gray-500">[Chức danh, Công ty]</p>
+                    </div>
+                </div>
+                <!-- 4.3 Phỏng vấn -->
+                <div class="card p-6">
+                    <h3 class="text-xl font-semibold mb-4">4.3 Tự Tin Khi Phỏng Vấn</h3>
+                    <p class="text-gray-600 mb-4">Chuẩn bị trước cho các câu hỏi phỏng vấn phổ biến sẽ giúp bạn thể hiện tốt nhất năng lực của mình.</p>
+                    <div id="interview-questions" class="space-y-2"></div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Section 5: Xã hội -->
+        <section id="xa-hoi" class="content-section">
+            <h2 class="text-3xl font-bold mb-2 text-gray-800">Phần 5: Giải Quyết Các Vấn Đề Xã Hội Đương Đại</h2>
+            <p class="mb-8 text-lg text-gray-600">Phần này đề cập đến các vấn đề nhạy cảm nhưng quan trọng trong xã hội hiện đại: bắt nạt trực tuyến và sức khỏe vị thành niên. Việc hiểu rõ bản chất, hậu quả và các biện pháp phòng ngừa là rất cần thiết.</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- 5.1 Bắt nạt trực tuyến -->
+                <div class="card p-6">
+                    <h3 class="text-xl font-semibold mb-4 text-red-600">5.1 Hiểu và Chống Lại Bắt Nạt Trực Tuyến</h3>
+                    <p class="text-gray-600 mb-4">Bắt nạt trực tuyến là hành vi gây tổn hại nghiêm trọng đến tinh thần và danh dự người khác qua không gian mạng. Hậu quả có thể rất nặng nề, từ căng thẳng, lo âu đến ý định tự tử.</p>
+                    <h4 class="font-semibold text-gray-800 mb-2">Nếu bạn là nạn nhân:</h4>
+                    <ul class="list-disc list-inside space-y-2 text-gray-700">
+                        <li><b>Không phản hồi:</b> Tránh đối đầu với kẻ bắt nạt.</li>
+                        <li><b>Lưu bằng chứng:</b> Chụp màn hình tin nhắn, bình luận để làm bằng chứng.</li>
+                        <li><b>Chặn & Báo cáo:</b> Sử dụng các công cụ của nền tảng để chặn và báo cáo hành vi.</li>
+                        <li><b>Tìm kiếm sự giúp đỡ:</b> Nói chuyện với gia đình, bạn bè, thầy cô hoặc chuyên gia tâm lý. Bạn không đơn độc.</li>
+                    </ul>
+                </div>
+
+                <!-- 5.2 Sức khỏe vị thành niên -->
+                <div class="card p-6">
+                    <h3 class="text-xl font-semibold mb-4 text-blue-600">5.2 Thách Thức Về Sức Khỏe Vị Thành Niên</h3>
+                    <p class="text-gray-600 mb-4">Thiếu kiến thức về sức khỏe sinh sản có thể dẫn đến những hậu quả nghiêm trọng về thể chất và tâm lý cho cả nam và nữ ở tuổi vị thành niên.</p>
+                    <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-lg mb-4" role="alert">
+                      <p class="font-bold">Thống kê đáng chú ý</p>
+                      <p>Việt Nam có một trong những tỷ lệ phá thai ở tuổi vị thành niên cao nhất, cho thấy sự thiếu hụt trong giáo dục giới tính và tiếp cận các biện pháp phòng tránh.</p>
+                    </div>
+                    <h4 class="font-semibold text-gray-800 mb-2">Lời khuyên của chuyên gia:</h4>
+                    <ul class="list-disc list-inside space-y-2 text-gray-700">
+                        <li>Giáo dục giới tính toàn diện cần được đưa vào trường học từ sớm.</li>
+                        <li>Cha mẹ cần tạo môi trường cởi mở để trò chuyện và hướng dẫn con cái.</li>
+                        <li>Tránh quan hệ tình dục sớm (trước 18 tuổi đối với nữ, 20 tuổi đối với nam) để cơ thể và tâm lý phát triển hoàn thiện.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const navButtons = document.querySelectorAll('.nav-button');
+            const mobileNav = document.getElementById('mobile-nav');
+            const contentSections = document.querySelectorAll('.content-section');
+            const initialSection = 'nen-tang';
+
+            function activateSection(targetId) {
+                navButtons.forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.target === targetId);
+                });
+                contentSections.forEach(section => {
+                    section.classList.toggle('active', section.id === targetId);
+                });
+                if (mobileNav.value !== targetId) {
+                    mobileNav.value = targetId;
+                }
+            }
+
+            navButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    activateSection(button.dataset.target);
+                });
+            });
+
+            mobileNav.addEventListener('change', () => {
+                activateSection(mobileNav.value);
+            });
+
+            activateSection(initialSection);
+
+            // Data for interactive elements
+            const universalLawsData = [
+                { name: "Luật Hấp Dẫn", desc: "Bạn thu hút những gì bạn nghĩ và cảm nhận. Tập trung vào tích cực để thu hút điều tốt đẹp." },
+                { name: "Luật Nhân Quả", desc: "Mọi hành động đều có phản ứng tương ứng. Gieo nhân nào gặt quả nấy." },
+                { name: "Luật Cân Bằng", desc: "Cuộc sống cần sự hài hòa giữa các khía cạnh: công việc, sức khỏe, mối quan hệ." },
+                { name: "Luật Trong Ngoài", desc: "Thế giới nội tâm (suy nghĩ, cảm xúc) của bạn phản ánh thế giới bên ngoài." },
+                { name: "Luật Tập Trung", desc: "Năng lượng của bạn chảy đến nơi bạn đặt sự chú ý. Tập trung vào mục tiêu." },
+                { name: "Luật Nhất Quán", desc: "Sự kiên trì và thói quen tốt tạo nên thành công bền vững." }
+            ];
+
+            const maslowData = [
+                { level: 5, name: "Thể hiện bản thân", color: "bg-purple-600", desc: "Hiện thực hóa tiềm năng, sáng tạo, phát triển cá nhân." },
+                { level: 4, name: "Được tôn trọng", color: "bg-indigo-600", desc: "Lòng tự trọng, sự tự tin, thành tựu, được người khác công nhận." },
+                { level: 3, name: "Nhu cầu xã hội", color: "bg-blue-600", desc: "Tình bạn, gia đình, tình yêu, cảm giác thuộc về." },
+                { level: 2, name: "An toàn", color: "bg-green-600", desc: "An toàn về thân thể, việc làm, sức khỏe, tài sản." },
+                { level: 1, name: "Sinh lý", color: "bg-yellow-600", desc: "Thức ăn, nước uống, không khí, nơi ở, giấc ngủ." }
+            ];
+
+            const smartGoalsData = [
+                { letter: 'S', name: 'Specific (Cụ thể)', desc: 'Mục tiêu phải rõ ràng, cụ thể. Ai? Cái gì? Ở đâu? Khi nào? Tại sao?' },
+                { letter: 'M', name: 'Measurable (Đo lường được)', desc: 'Phải có chỉ số để theo dõi tiến độ. Ví dụ: giảm 5kg, đọc 12 cuốn sách.' },
+                { letter: 'A', name: 'Achievable (Khả thi)', desc: 'Mục tiêu phải thách thức nhưng có thể đạt được với nguồn lực hiện có.' },
+                { letter: 'R', name: 'Relevant (Thực tế/Liên quan)', desc: 'Mục tiêu phải phù hợp với các mục tiêu lớn hơn và bối cảnh thực tế của bạn.' },
+                { letter: 'T', name: 'Time-bound (Có giới hạn thời gian)', desc: 'Phải có thời hạn cụ thể để tạo sự khẩn trương và lập kế hoạch.' }
+            ];
+
+            const eisenhowerData = {
+                1: { title: "Làm ngay: Khẩn cấp & Quan trọng", desc: "Đây là các cuộc khủng hoảng, vấn đề cấp bách, hoặc dự án có hạn chót. Cần giải quyết ngay lập tức để tránh hậu quả tiêu cực.", color: "bg-red-100 border-red-500" },
+                2: { title: "Lên lịch: Quan trọng & Không khẩn cấp", desc: "Đây là khu vực của sự phát triển: lập kế hoạch dài hạn, xây dựng mối quan hệ, học kỹ năng mới. Hãy dành nhiều thời gian nhất ở đây để thành công bền vững.", color: "bg-blue-100 border-blue-500" },
+                3: { title: "Ủy thác: Khẩn cấp & Không quan trọng", desc: "Đây là những việc làm gián đoạn, các cuộc họp hoặc email không đóng góp vào mục tiêu của bạn. Hãy ủy thác hoặc tự động hóa nếu có thể.", color: "bg-green-100 border-green-500" },
+                4: { title: "Loại bỏ: Không khẩn cấp & Không quan trọng", desc: "Đây là những thứ gây xao lãng, lãng phí thời gian như lướt mạng xã hội vô mục đích. Hãy loại bỏ chúng khỏi cuộc sống của bạn.", color: "bg-gray-100 border-gray-500" }
+            };
+
+            const tuckmanData = {
+                forming: "Các thành viên còn dè dặt, lịch sự, phụ thuộc vào người lãnh đạo để định hướng. Mục tiêu là làm quen và hiểu nhiệm vụ.",
+                storming: "Xung đột bắt đầu nảy sinh khi các cá tính bộc lộ. Đây là giai đoạn thử thách nhưng cần thiết để làm rõ các vấn đề.",
+                norming: "Nhóm giải quyết xung đột, thống nhất các quy tắc và vai trò. Sự gắn kết và hợp tác bắt đầu hình thành.",
+                performing: "Nhóm hoạt động với hiệu suất cao, tự chủ và tập trung vào việc đạt được mục tiêu chung. Sự hợp tác diễn ra trôi chảy.",
+                adjourning: "Nhiệm vụ hoàn thành, nhóm có thể tan rã. Đây là giai đoạn để tổng kết, ăn mừng thành công và nói lời tạm biệt."
+            };
+            
+            const cvErrorsData = [
+                "Lỗi chính tả, ngữ pháp.",
+                "Sử dụng email, phông chữ không chuyên nghiệp.",
+                "Quá dài hoặc chứa thông tin không liên quan.",
+                "Thiếu trung thực, phóng đại sự thật.",
+                "Mô tả mơ hồ, thiếu các con số và thành tích cụ thể.",
+                "Dùng một CV cho mọi công ty.",
+                "Thiết kế lộn xộn, khó đọc."
+            ];
+
+            const interviewQuestionsData = [
+                { q: "Hãy giới thiệu về bản thân bạn?", a: "Tập trung vào 3 điểm: bạn là ai, các kỹ năng/kinh nghiệm liên quan nhất, và định hướng nghề nghiệp phù hợp với vị trí." },
+                { q: "Điểm yếu của bạn là gì?", a: "Chọn một điểm yếu thực sự nhưng không ảnh hưởng cốt lõi đến công việc. Quan trọng là cho thấy bạn đã nhận ra và đang nỗ lực cải thiện nó." },
+                { q: "Tại sao chúng tôi nên tuyển bạn?", a: "Kết nối kỹ năng của bạn với nhu cầu của công ty. Hãy cho thấy bạn là giải pháp cho vấn đề của họ." },
+                { q: "Bạn có câu hỏi nào cho chúng tôi không?", a: "Luôn chuẩn bị 2-3 câu hỏi. Điều này thể hiện sự quan tâm thực sự của bạn đến công ty và vai trò." }
+            ];
+
+            // Render functions
+            function renderUniversalLaws() {
+                const container = document.getElementById('universal-laws-container');
+                container.innerHTML = universalLawsData.map(law => `
+                    <div class="interactive-element cursor-pointer" onclick="this.querySelector('p').classList.toggle('hidden')">
+                        <h4 class="font-semibold text-blue-700">${law.name}</h4>
+                        <p class="text-sm text-gray-600 mt-1 hidden">${law.desc}</p>
+                    </div>
+                `).join('');
+            }
+
+            function renderMaslowPyramid() {
+                const container = document.getElementById('maslow-pyramid');
+                const details = document.getElementById('maslow-details');
+                container.innerHTML = maslowData.map(item => `
+                    <div class="maslow-level p-3 rounded-md ${item.color} shadow" style="clip-path: polygon(10% 0, 90% 0, 100% 100%, 0% 100%); width: ${60 + item.level * 8}%; margin-left: auto; margin-right: auto;" data-desc="${item.desc}">
+                        ${item.name}
+                    </div>
+                `).join('');
+                
+                details.textContent = "Nhấp vào một tầng để xem mô tả.";
+
+                document.querySelectorAll('.maslow-level').forEach(level => {
+                    level.addEventListener('click', () => {
+                        details.textContent = level.dataset.desc;
+                    });
+                });
+            }
+
+            function renderSmartGoals() {
+                const container = document.getElementById('smart-goals-container');
+                container.innerHTML = smartGoalsData.map(goal => `
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0 bg-blue-500 text-white w-10 h-10 rounded-full flex items-center justify-center font-bold text-xl">${goal.letter}</div>
+                        <div class="ml-4">
+                            <h4 class="font-semibold text-gray-800">${goal.name}</h4>
+                            <p class="text-gray-600">${goal.desc}</p>
+                        </div>
+                    </div>
+                `).join('');
+            }
+            
+            function handleEisenhowerMatrix() {
+                const details = document.getElementById('eisenhower-details');
+                const quadrants = document.querySelectorAll('.eisenhower-quadrant');
+                
+                details.innerHTML = "Nhấp vào một ô để xem chi tiết.";
+
+                quadrants.forEach(quad => {
+                    quad.addEventListener('click', () => {
+                        const quadrantData = eisenhowerData[quad.dataset.quadrant];
+                        details.innerHTML = `<div class="p-4 rounded-lg border-2 ${quadrantData.color}">
+                            <h4 class="font-bold text-gray-900">${quadrantData.title}</h4>
+                            <p class="mt-1">${quadrantData.desc}</p>
+                        </div>`;
+                    });
+                });
+            }
+
+            function handleTuckmanStages() {
+                const details = document.getElementById('tuckman-details');
+                const stages = document.querySelectorAll('.tuckman-stage');
+                
+                details.textContent = "Nhấp vào một giai đoạn để xem mô tả.";
+
+                stages.forEach(stage => {
+                    stage.addEventListener('click', () => {
+                        stages.forEach(s => s.classList.remove('active'));
+                        stage.classList.add('active');
+                        details.textContent = tuckmanData[stage.dataset.stage];
+                    });
+                });
+            }
+            
+            function renderCvErrors() {
+                const container = document.getElementById('cv-errors');
+                container.innerHTML = cvErrorsData.map(error => `
+                    <li class="flex items-start">
+                        <span class="text-red-500 mr-2 mt-1">❌</span>
+                        <span>${error}</span>
+                    </li>
+                `).join('');
+            }
+
+            function renderInterviewQuestions() {
+                const container = document.getElementById('interview-questions');
+                container.innerHTML = interviewQuestionsData.map(item => `
+                    <div class="border-b border-gray-200 pb-2">
+                        <details>
+                            <summary class="font-semibold text-gray-700 cursor-pointer">${item.q}</summary>
+                            <p class="mt-2 text-sm text-gray-600 bg-gray-50 p-3 rounded-md">${item.a}</p>
+                        </details>
+                    </div>
+                `).join('');
+            }
+
+            // Charting
+            function createEqChart() {
+                const ctx = document.getElementById('eqChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'radar',
+                    data: {
+                        labels: ['Tự nhận thức', 'Tự điều chỉnh', 'Động lực', 'Đồng cảm', 'Kỹ năng xã hội'],
+                        datasets: [{
+                            label: 'Các thành phần EQ',
+                            data: [90, 80, 85, 95, 88],
+                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 2,
+                            pointBackgroundColor: 'rgba(54, 162, 235, 1)'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            r: {
+                                angleLines: { display: true },
+                                suggestedMin: 0,
+                                suggestedMax: 100,
+                                pointLabels: { font: { size: 12 } }
+                            }
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return context.dataset.label + ': ' + context.formattedValue;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            function createTeamworkChart() {
+                const ctx = document.getElementById('teamworkChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['An toàn tâm lý', 'Đáng tin cậy', 'Cấu trúc & Rõ ràng', 'Ý nghĩa', 'Tác động'],
+                        datasets: [{
+                            label: 'Chìa khóa nhóm hiệu quả',
+                            data: [40, 20, 15, 15, 10],
+                            backgroundColor: [
+                                'rgba(54, 162, 235, 0.8)',
+                                'rgba(75, 192, 192, 0.8)',
+                                'rgba(255, 206, 86, 0.8)',
+                                'rgba(153, 102, 255, 0.8)',
+                                'rgba(255, 159, 64, 0.8)'
+                            ],
+                            borderColor: '#fff',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                            },
+                            title: {
+                                display: true,
+                                text: '5 Yếu Tố Của Nhóm Hiệu Quả (Google)'
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Initial render calls
+            renderUniversalLaws();
+            renderMaslowPyramid();
+            renderSmartGoals();
+            handleEisenhowerMatrix();
+            handleTuckmanStages();
+            renderCvErrors();
+            renderInterviewQuestions();
+            createEqChart();
+            createTeamworkChart();
+        });
+    </script>
+</body>
+</html>
